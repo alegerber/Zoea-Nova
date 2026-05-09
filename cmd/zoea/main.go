@@ -214,27 +214,52 @@ func initProviders(cfg *config.Config, creds *config.Credentials) *provider.Regi
 	registry := provider.NewRegistry()
 
 	for name, provCfg := range cfg.Providers {
-		// Detect provider type by endpoint
-		if strings.Contains(provCfg.Endpoint, "localhost:11434") || strings.Contains(provCfg.Endpoint, "/ollama") {
-			// Ollama-based provider
+		adapterType := provCfg.Type
+		if adapterType == "" {
+			adapterType = detectProviderType(provCfg.Endpoint)
+		}
+
+		switch adapterType {
+		case "ollama":
 			factory := provider.NewOllamaFactory(name, provCfg.Endpoint)
 			registry.RegisterFactory(name, factory)
-		} else if strings.Contains(provCfg.Endpoint, "opencode.ai") {
-			// OpenCode-based provider
-			// Use explicit api_key_name if provided, otherwise use provider config name
+
+		case "opencode":
 			keyName := provCfg.APIKeyName
 			if keyName == "" {
 				keyName = name
 			}
 			apiKey := creds.GetAPIKey(keyName)
-			if apiKey != "" {
-				factory := provider.NewOpenCodeFactory(name, provCfg.Endpoint, apiKey)
-				registry.RegisterFactory(name, factory)
+			if apiKey == "" {
+				log.Warn().
+					Str("provider", name).
+					Str("key_name", keyName).
+					Msg("skipping provider — no API key configured")
+				continue
 			}
+			factory := provider.NewOpenCodeFactory(name, provCfg.Endpoint, apiKey)
+			registry.RegisterFactory(name, factory)
+
+		default:
+			log.Warn().
+				Str("provider", name).
+				Str("endpoint", provCfg.Endpoint).
+				Msg("skipping provider — could not determine adapter type")
 		}
 	}
 
 	return registry
+}
+
+func detectProviderType(endpoint string) string {
+	switch {
+	case strings.Contains(endpoint, "localhost:11434"), strings.Contains(endpoint, "/ollama"):
+		return "ollama"
+	case strings.Contains(endpoint, "opencode.ai"):
+		return "opencode"
+	default:
+		return ""
+	}
 }
 
 type accountStoreAdapter struct {
