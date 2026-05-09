@@ -224,6 +224,10 @@ func initProviders(cfg *config.Config, creds *config.Credentials) *provider.Regi
 			factory := provider.NewOllamaFactory(name, provCfg.Endpoint)
 			registry.RegisterFactory(name, factory)
 
+		case "lmstudio":
+			factory := provider.NewLMStudioFactory(name, provCfg.Endpoint)
+			registry.RegisterFactory(name, factory)
+
 		case "opencode":
 			keyName := provCfg.APIKeyName
 			if keyName == "" {

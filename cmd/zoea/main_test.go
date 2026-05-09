@@ -82,3 +82,25 @@ func TestInitProviders_UnknownTypeSkips(t *testing.T) {
 		t.Error("expected unknown-type provider to be unregistered")
 	}
 }
+
+func TestInitProviders_LMStudioByType(t *testing.T) {
+	cfg := &config.Config{
+		Providers: map[string]config.ProviderConfig{
+			"lm-qwen": {
+				Type:        "lmstudio",
+				Endpoint:    "http://localhost:1234/v1",
+				Model:       "qwen2.5-7b",
+				Temperature: 0.5,
+			},
+		},
+	}
+	registry := initProviders(cfg, &config.Credentials{})
+
+	p, err := registry.Create("lm-qwen", "qwen2.5-7b", 0.5)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if p.Name() != "lm-qwen" {
+		t.Errorf("Name() = %q, want lm-qwen", p.Name())
+	}
+}
