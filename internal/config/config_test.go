@@ -568,3 +568,65 @@ model = "qwen3:4b"
 		})
 	}
 }
+
+func TestProviderConfig_TypeField(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "config.toml")
+	contents := `
+[swarm]
+max_myses = 4
+default_provider = "lm-studio"
+
+[providers.lm-studio]
+type = "lmstudio"
+endpoint = "http://localhost:1234/v1"
+model = "qwen2.5-7b-instruct"
+temperature = 0.5
+
+[mcp]
+upstream = "https://example.com/mcp"
+`
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	got := cfg.Providers["lm-studio"]
+	if got.Type != "lmstudio" {
+		t.Errorf("Type = %q, want %q", got.Type, "lmstudio")
+	}
+}
+
+func TestProviderConfig_TypeFieldOptional(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "config.toml")
+	contents := `
+[swarm]
+max_myses = 4
+default_provider = "ollama-qwen"
+
+[providers.ollama-qwen]
+endpoint = "http://localhost:11434"
+model = "qwen3:8b"
+temperature = 0.5
+
+[mcp]
+upstream = "https://example.com/mcp"
+`
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	if cfg.Providers["ollama-qwen"].Type != "" {
+		t.Errorf("Type should be empty for legacy config")
+	}
+}

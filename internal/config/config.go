@@ -27,6 +27,9 @@ type SwarmConfig struct {
 
 // ProviderConfig holds LLM provider settings.
 type ProviderConfig struct {
+	// Type is the explicit adapter type ("ollama", "opencode", "lmstudio", "openrouter").
+	// When empty, initProviders falls back to endpoint-based detection.
+	Type        string  `toml:"type"`
 	Endpoint    string  `toml:"endpoint"`
 	Model       string  `toml:"model"`
 	APIKeyName  string  `toml:"api_key_name"`
