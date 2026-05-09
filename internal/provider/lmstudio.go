@@ -27,10 +27,13 @@ type LMStudioProvider struct {
 
 var lmstudioRetryDelays = []time.Duration{5 * time.Second, 10 * time.Second, 15 * time.Second}
 
+// NewLMStudio creates a new LM Studio provider with default name and temperature.
 func NewLMStudio(endpoint, model string) *LMStudioProvider {
 	return NewLMStudioWithTemp("lmstudio", endpoint, model, 0.7)
 }
 
+// NewLMStudioWithTemp creates a new LM Studio provider with explicit name and temperature.
+// The endpoint may or may not end in /v1; the constructor normalizes both forms.
 func NewLMStudioWithTemp(name string, endpoint, model string, temperature float64) *LMStudioProvider {
 	cfg := openai.DefaultConfig("")
 	baseURL := strings.TrimRight(endpoint, "/")
@@ -74,12 +77,14 @@ func (p *LMStudioProvider) Close() error {
 	return nil
 }
 
+// lmstudioRequest is a custom request struct to ensure stream:false is serialized
+// The openai.ChatCompletionRequest has omitempty on Stream, which omits false values
 type lmstudioRequest struct {
 	Model       string                         `json:"model"`
 	Messages    []openai.ChatCompletionMessage `json:"messages"`
 	Tools       []openai.Tool                  `json:"tools,omitempty"`
 	Temperature float32                        `json:"temperature,omitempty"`
-	Stream      bool                           `json:"stream"`
+	Stream      bool                           `json:"stream"` // NO omitempty - always serialize
 }
 
 func (p *LMStudioProvider) createChatCompletion(ctx context.Context, req openai.ChatCompletionRequest) (*openaiChatResponse, error) {
@@ -138,7 +143,8 @@ func (p *LMStudioProvider) createChatCompletion(ctx context.Context, req openai.
 			continue
 		}
 
-		if resp.StatusCode == 429 || resp.StatusCode >= 500 && resp.StatusCode <= 504 {
+		if resp.StatusCode == 429 || resp.StatusCode == 500 || resp.StatusCode == 502 ||
+			resp.StatusCode == 503 || resp.StatusCode == 504 {
 			payload, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			lastErr = fmt.Errorf("chat completion status %d: %s", resp.StatusCode, strings.TrimSpace(string(payload)))
