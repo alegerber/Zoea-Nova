@@ -70,6 +70,7 @@ func TestInitProviders_UnknownTypeSkips(t *testing.T) {
 	cfg := &config.Config{
 		Providers: map[string]config.ProviderConfig{
 			"mystery": {
+				Type:        "mystery",
 				Endpoint:    "https://unknown-vendor.example/v1",
 				Model:       "mystery-7b",
 				Temperature: 0.7,

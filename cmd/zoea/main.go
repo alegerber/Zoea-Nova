@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"syscall"
 	"time"
 
@@ -215,9 +214,6 @@ func initProviders(cfg *config.Config, creds *config.Credentials) *provider.Regi
 
 	for name, provCfg := range cfg.Providers {
 		adapterType := provCfg.Type
-		if adapterType == "" {
-			adapterType = detectProviderType(provCfg.Endpoint)
-		}
 
 		switch adapterType {
 		case "ollama":
@@ -260,19 +256,6 @@ func initProviders(cfg *config.Config, creds *config.Credentials) *provider.Regi
 	}
 
 	return registry
-}
-
-// detectProviderType infers the adapter type from endpoint substrings.
-// Used as a fallback when ProviderConfig.Type is empty.
-func detectProviderType(endpoint string) string {
-	switch {
-	case strings.Contains(endpoint, "localhost:11434"), strings.Contains(endpoint, "/ollama"):
-		return "ollama"
-	case strings.Contains(endpoint, "opencode.ai"):
-		return "opencode"
-	default:
-		return ""
-	}
 }
 
 type accountStoreAdapter struct {
