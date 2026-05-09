@@ -568,3 +568,113 @@ model = "qwen3:4b"
 		})
 	}
 }
+
+func TestProviderConfig_TypeField(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "config.toml")
+	contents := `
+[swarm]
+max_myses = 4
+default_provider = "lm-studio"
+
+[providers.lm-studio]
+type = "lmstudio"
+endpoint = "http://localhost:1234/v1"
+model = "qwen2.5-7b-instruct"
+temperature = 0.5
+
+[mcp]
+upstream = "https://example.com/mcp"
+`
+	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	got := cfg.Providers["lm-studio"]
+	if got.Type != "lmstudio" {
+		t.Errorf("Type = %q, want %q", got.Type, "lmstudio")
+	}
+}
+
+func TestProviderConfig_TypeFieldOptional(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "config.toml")
+	contents := `
+[swarm]
+max_myses = 4
+default_provider = "ollama-qwen"
+
+[providers.ollama-qwen]
+endpoint = "http://localhost:11434"
+model = "qwen3:8b"
+temperature = 0.5
+
+[mcp]
+upstream = "https://example.com/mcp"
+`
+	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	if got := cfg.Providers["ollama-qwen"].Type; got != "" {
+		t.Errorf("Type = %q, want empty", got)
+	}
+}
+
+func TestValidateProviderConfig_RejectsUnknownType(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "config.toml")
+	contents := `
+[swarm]
+max_myses = 4
+default_provider = "x"
+
+[providers.x]
+type = "totally-made-up"
+endpoint = "http://localhost:9999/v1"
+model = "foo"
+temperature = 0.5
+
+[mcp]
+upstream = "https://example.com/mcp"
+`
+	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected validation error for unknown type, got nil")
+	}
+	if !strings.Contains(err.Error(), `type="totally-made-up"`) {
+		t.Errorf("error should mention the offending type value, got %q", err.Error())
+	}
+}
+
+func TestValidateProviderConfig_AcceptsKnownTypes(t *testing.T) {
+	cases := []string{"ollama", "opencode", "lmstudio", "openrouter", ""}
+	for _, typ := range cases {
+		t.Run("type="+typ, func(t *testing.T) {
+			cfg := ProviderConfig{
+				Type:        typ,
+				Endpoint:    "http://localhost:1234/v1",
+				Model:       "test-model",
+				Temperature: 0.5,
+			}
+			errs := validateProviderConfig("test", cfg)
+			if len(errs) != 0 {
+				t.Errorf("type=%q produced unexpected errors: %v", typ, errs)
+			}
+		})
+	}
+}

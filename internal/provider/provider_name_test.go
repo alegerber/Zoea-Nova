@@ -53,6 +53,14 @@ func TestProviderNameFromConfig(t *testing.T) {
 			},
 			expectedName: "opencode_zen",
 		},
+		{
+			name:       "LM Studio with custom name",
+			configName: "lm-qwen",
+			factoryFunc: func(name string) ProviderFactory {
+				return NewLMStudioFactory(name, "http://localhost:1234")
+			},
+			expectedName: "lm-qwen",
+		},
 	}
 
 	for _, tt := range tests {
@@ -120,5 +128,16 @@ func TestProviderNameNotHardcoded(t *testing.T) {
 	}
 	if provider4.Name() != "zen-pickle" {
 		t.Errorf("provider4.Name() = %q, want %q", provider4.Name(), "zen-pickle")
+	}
+}
+
+func TestLMStudioFactory_Create(t *testing.T) {
+	f := NewLMStudioFactory("local", "http://localhost:1234/v1")
+	p := f.Create("qwen2.5-7b", 0.7)
+	if p.Name() != "local" {
+		t.Errorf("Name() = %q, want local", p.Name())
+	}
+	if _, ok := p.(*LMStudioProvider); !ok {
+		t.Fatalf("Create returned %T, want *LMStudioProvider", p)
 	}
 }

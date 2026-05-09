@@ -93,6 +93,17 @@ Post "http://localhost:11434/v1/chat/completions": context deadline exceeded
 
 ---
 
+## LM Studio
+
+- LM Studio's `model` API identifier is the loaded-model slug shown in the
+  local-server panel — often `<publisher>/<slug>` (e.g. `qwen/qwen3.5-9b`).
+  Mismatches surface as HTTP 404 from `/v1/chat/completions`.
+- Tool-calling depends on the underlying model. Llama-3.1-Instruct and
+  Qwen2.5-Tools / Qwen3 variants work; base models without function-calling
+  tuning will reply in plain text.
+
+---
+
 ## Adding New Provider Issues
 
 When documenting new provider issues:

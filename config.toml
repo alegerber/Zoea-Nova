@@ -3,32 +3,44 @@ max_myses = 16
 default_provider = "ollama-qwen"
 
 # Ollama providers (local)
+type = "ollama"
 [providers.ollama-qwen]
 endpoint = "http://localhost:11434"
 model = "qwen3:8b"
 temperature = 0.7
 
 [providers.ollama-qwen-small]
+type = "ollama"
 endpoint = "http://localhost:11434"
 model = "qwen3:4b"
 temperature = 0.7
 
 [providers.ollama-llama]
+type = "ollama"
 endpoint = "http://localhost:11434"
 model = "llama3.1:8b"
 temperature = 0.7
 
 # OpenCode Zen providers (cloud)
 [providers.zen-nano]
+type = "opencode"
 endpoint = "https://opencode.ai/zen/v1"
 model = "gpt-5-nano"
 api_key_name = "opencode_zen"
 temperature = 0.7
 
 [providers.zen-pickle]
+type = "opencode"
 endpoint = "https://opencode.ai/zen/v1"
 model = "big-pickle"
 api_key_name = "opencode_zen"
+temperature = 0.7
+
+# LM Studio provider (local)
+[providers.lm-qwen]
+type = "lmstudio"
+endpoint = "http://localhost:1234/v1"
+model = "qwen/qwen3.5-9b"
 temperature = 0.7
 
 [mcp]

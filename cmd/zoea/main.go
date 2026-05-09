@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"syscall"
 	"time"
 
@@ -214,22 +213,44 @@ func initProviders(cfg *config.Config, creds *config.Credentials) *provider.Regi
 	registry := provider.NewRegistry()
 
 	for name, provCfg := range cfg.Providers {
-		// Detect provider type by endpoint
-		if strings.Contains(provCfg.Endpoint, "localhost:11434") || strings.Contains(provCfg.Endpoint, "/ollama") {
-			// Ollama-based provider
+		adapterType := provCfg.Type
+
+		switch adapterType {
+		case "ollama":
 			factory := provider.NewOllamaFactory(name, provCfg.Endpoint)
 			registry.RegisterFactory(name, factory)
-		} else if strings.Contains(provCfg.Endpoint, "opencode.ai") {
-			// OpenCode-based provider
-			// Use explicit api_key_name if provided, otherwise use provider config name
+
+		case "lmstudio":
+			factory := provider.NewLMStudioFactory(name, provCfg.Endpoint)
+			registry.RegisterFactory(name, factory)
+
+		case "opencode":
 			keyName := provCfg.APIKeyName
 			if keyName == "" {
 				keyName = name
 			}
 			apiKey := creds.GetAPIKey(keyName)
-			if apiKey != "" {
-				factory := provider.NewOpenCodeFactory(name, provCfg.Endpoint, apiKey)
-				registry.RegisterFactory(name, factory)
+			if apiKey == "" {
+				log.Warn().
+					Str("provider", name).
+					Str("api_key_name", keyName).
+					Msg("skipping provider — no API key configured")
+				continue
+			}
+			factory := provider.NewOpenCodeFactory(name, provCfg.Endpoint, apiKey)
+			registry.RegisterFactory(name, factory)
+
+		default:
+			if adapterType == "" {
+				log.Warn().
+					Str("provider", name).
+					Str("endpoint", provCfg.Endpoint).
+					Msg("skipping provider — could not determine adapter type from endpoint")
+			} else {
+				log.Warn().
+					Str("provider", name).
+					Str("type", adapterType).
+					Msg("skipping provider — no handler registered for type")
 			}
 		}
 	}
