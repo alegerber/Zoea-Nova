@@ -225,7 +225,35 @@ func (p *LMStudioProvider) ChatWithTools(ctx context.Context, messages []Message
 	return result, nil
 }
 
-// Stream — placeholder, full impl in Task 5.
+// Stream sends messages and returns a channel that streams response chunks.
 func (p *LMStudioProvider) Stream(ctx context.Context, messages []Message) (<-chan StreamChunk, error) {
-	return nil, errors.New("Stream not implemented yet")
+	stream, err := p.client.CreateChatCompletionStream(ctx, openai.ChatCompletionRequest{
+		Model:       p.model,
+		Messages:    mergeSystemMessagesOpenAI(toOpenAIMessages(messages)),
+		Temperature: float32(p.temperature),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan StreamChunk)
+	go func() {
+		defer close(ch)
+		defer stream.Close()
+		for {
+			resp, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				ch <- StreamChunk{Done: true}
+				return
+			}
+			if err != nil {
+				ch <- StreamChunk{Err: err}
+				return
+			}
+			if len(resp.Choices) > 0 {
+				ch <- StreamChunk{Content: resp.Choices[0].Delta.Content}
+			}
+		}
+	}()
+	return ch, nil
 }

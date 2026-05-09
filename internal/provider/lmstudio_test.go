@@ -215,6 +215,43 @@ func TestLMStudio_ChatWithTools(t *testing.T) {
 	}
 }
 
+func TestLMStudio_Stream(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher, _ := w.(http.Flusher)
+		chunks := []string{
+			`data: {"choices":[{"delta":{"content":"hel"}}]}`,
+			`data: {"choices":[{"delta":{"content":"lo"}}]}`,
+			"data: [DONE]",
+		}
+		for _, c := range chunks {
+			_, _ = w.Write([]byte(c + "\n\n"))
+			flusher.Flush()
+		}
+	}))
+	defer server.Close()
+
+	p := NewLMStudio(server.URL, "test-model")
+	ch, err := p.Stream(context.Background(), []Message{{Role: "user", Content: "hi"}})
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+
+	var got strings.Builder
+	for chunk := range ch {
+		if chunk.Err != nil {
+			t.Fatalf("stream error: %v", chunk.Err)
+		}
+		got.WriteString(chunk.Content)
+		if chunk.Done {
+			break
+		}
+	}
+	if got.String() != "hello" {
+		t.Errorf("streamed content = %q, want hello", got.String())
+	}
+}
+
 // TestLMStudio_InvalidToolSchema verifies that a malformed Parameters JSON
 // produces a wrapped "invalid tool schema" error before any HTTP call is made.
 func TestLMStudio_InvalidToolSchema(t *testing.T) {
