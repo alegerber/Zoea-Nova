@@ -6,9 +6,12 @@ import (
 	"path/filepath"
 )
 
-// Credentials holds API keys for LLM providers.
+// Credentials holds API keys for LLM providers and game-server registration.
 type Credentials struct {
-	Providers map[string]ProviderCredentials `json:"providers"`
+	// RegistrationCode is the SpaceMolt registration code for this installation.
+	// Empty means no code is configured; consumers handle that case gracefully.
+	RegistrationCode string                         `json:"registration_code,omitempty"`
+	Providers        map[string]ProviderCredentials `json:"providers"`
 }
 
 // ProviderCredentials holds authentication for a single provider.
