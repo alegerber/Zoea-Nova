@@ -31,15 +31,12 @@ model = "big-pickle"
 api_key_name = "opencode_zen"
 temperature = 0.7
 
-# LM Studio provider (local, OpenAI-compatible, no auth)
-# Start LM Studio's "Local Server" first (default port 1234).
-# The model identifier must match exactly what LM Studio's server panel shows
-# (often <publisher>/<slug> like "qwen/qwen3.5-9b").
-# [providers.lm-qwen]
-# type = "lmstudio"
-# endpoint = "http://localhost:1234/v1"
-# model = "qwen/qwen3.5-9b"
-# temperature = 0.7
+# LM Studio provider (local)
+[providers.lm-qwen]
+type = "lmstudio"
+endpoint = "http://localhost:1234/v1"
+model = "qwen/qwen3.5-9b"
+temperature = 0.7
 
 [mcp]
 upstream = "https://game.spacemolt.com/mcp"
