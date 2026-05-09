@@ -44,7 +44,10 @@ type LMStudioFactory struct {
 }
 
 func NewLMStudioFactory(name string, endpoint string) *LMStudioFactory {
-	return &LMStudioFactory{name: name, endpoint: endpoint}
+	return &LMStudioFactory{
+		name:     name,
+		endpoint: endpoint,
+	}
 }
 
 func (f *LMStudioFactory) Name() string { return f.name }
