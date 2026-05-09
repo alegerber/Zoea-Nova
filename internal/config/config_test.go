@@ -586,7 +586,7 @@ temperature = 0.5
 [mcp]
 upstream = "https://example.com/mcp"
 `
-	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 
@@ -617,7 +617,7 @@ temperature = 0.5
 [mcp]
 upstream = "https://example.com/mcp"
 `
-	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 
@@ -626,7 +626,7 @@ upstream = "https://example.com/mcp"
 		t.Fatalf("Load: %v", err)
 	}
 
-	if cfg.Providers["ollama-qwen"].Type != "" {
-		t.Errorf("Type should be empty for legacy config")
+	if got := cfg.Providers["ollama-qwen"].Type; got != "" {
+		t.Errorf("Type = %q, want empty", got)
 	}
 }
