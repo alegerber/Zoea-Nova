@@ -656,8 +656,8 @@ upstream = "https://example.com/mcp"
 	if err == nil {
 		t.Fatal("expected validation error for unknown type, got nil")
 	}
-	if !strings.Contains(err.Error(), "type=") {
-		t.Errorf("error should mention type, got %q", err.Error())
+	if !strings.Contains(err.Error(), `type="totally-made-up"`) {
+		t.Errorf("error should mention the offending type value, got %q", err.Error())
 	}
 }
 
@@ -672,10 +672,8 @@ func TestValidateProviderConfig_AcceptsKnownTypes(t *testing.T) {
 				Temperature: 0.5,
 			}
 			errs := validateProviderConfig("test", cfg)
-			for _, e := range errs {
-				if strings.Contains(e.Error(), "type=") {
-					t.Errorf("type=%q rejected: %v", typ, e)
-				}
+			if len(errs) != 0 {
+				t.Errorf("type=%q produced unexpected errors: %v", typ, errs)
 			}
 		})
 	}
