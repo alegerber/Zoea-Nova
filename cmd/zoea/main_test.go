@@ -40,3 +40,45 @@ func TestInitProviders_LegacyFallback(t *testing.T) {
 		t.Errorf("legacy ollama-qwen should still register, got %v", err)
 	}
 }
+
+// TestInitProviders_OpenCodeMissingKeySkips verifies that an opencode-typed provider
+// without an API key is skipped (and the bug from earlier sessions where this caused
+// "provider not found" with no log hint is now logged at warn level).
+func TestInitProviders_OpenCodeMissingKeySkips(t *testing.T) {
+	cfg := &config.Config{
+		Providers: map[string]config.ProviderConfig{
+			"zen-pickle": {
+				Type:        "opencode",
+				Endpoint:    "https://opencode.ai/zen/v1",
+				Model:       "big-pickle",
+				APIKeyName:  "opencode_zen",
+				Temperature: 0.7,
+			},
+		},
+	}
+	registry := initProviders(cfg, &config.Credentials{})
+
+	if _, err := registry.Create("zen-pickle", "big-pickle", 0.7); err == nil {
+		t.Error("expected provider to be unregistered when API key is missing")
+	}
+}
+
+// TestInitProviders_UnknownTypeSkips verifies the default branch — adapterType empty
+// because the endpoint matches no heuristic and Type is unset. This locks in the
+// fallback behaviour before Task 8 adds the lmstudio branch.
+func TestInitProviders_UnknownTypeSkips(t *testing.T) {
+	cfg := &config.Config{
+		Providers: map[string]config.ProviderConfig{
+			"mystery": {
+				Endpoint:    "https://unknown-vendor.example/v1",
+				Model:       "mystery-7b",
+				Temperature: 0.7,
+			},
+		},
+	}
+	registry := initProviders(cfg, &config.Credentials{})
+
+	if _, err := registry.Create("mystery", "mystery-7b", 0.7); err == nil {
+		t.Error("expected unknown-type provider to be unregistered")
+	}
+}

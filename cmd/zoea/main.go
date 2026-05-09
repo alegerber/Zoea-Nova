@@ -233,7 +233,7 @@ func initProviders(cfg *config.Config, creds *config.Credentials) *provider.Regi
 			if apiKey == "" {
 				log.Warn().
 					Str("provider", name).
-					Str("key_name", keyName).
+					Str("api_key_name", keyName).
 					Msg("skipping provider — no API key configured")
 				continue
 			}
@@ -241,16 +241,25 @@ func initProviders(cfg *config.Config, creds *config.Credentials) *provider.Regi
 			registry.RegisterFactory(name, factory)
 
 		default:
-			log.Warn().
-				Str("provider", name).
-				Str("endpoint", provCfg.Endpoint).
-				Msg("skipping provider — could not determine adapter type")
+			if adapterType == "" {
+				log.Warn().
+					Str("provider", name).
+					Str("endpoint", provCfg.Endpoint).
+					Msg("skipping provider — could not determine adapter type from endpoint")
+			} else {
+				log.Warn().
+					Str("provider", name).
+					Str("type", adapterType).
+					Msg("skipping provider — no handler registered for type")
+			}
 		}
 	}
 
 	return registry
 }
 
+// detectProviderType infers the adapter type from endpoint substrings.
+// Used as a fallback when ProviderConfig.Type is empty.
 func detectProviderType(endpoint string) string {
 	switch {
 	case strings.Contains(endpoint, "localhost:11434"), strings.Contains(endpoint, "/ollama"):
