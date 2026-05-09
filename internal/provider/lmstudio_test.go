@@ -203,7 +203,40 @@ func TestLMStudio_ChatWithTools(t *testing.T) {
 	if len(resp.ToolCalls) != 1 {
 		t.Fatalf("expected 1 tool call, got %d", len(resp.ToolCalls))
 	}
-	if resp.ToolCalls[0].Name != "get_weather" {
-		t.Errorf("tool call name = %q", resp.ToolCalls[0].Name)
+	tc := resp.ToolCalls[0]
+	if tc.ID != "call_1" {
+		t.Errorf("tool call ID = %q, want call_1", tc.ID)
+	}
+	if tc.Name != "get_weather" {
+		t.Errorf("tool call name = %q, want get_weather", tc.Name)
+	}
+	if string(tc.Arguments) != `{"city":"berlin"}` {
+		t.Errorf("tool call arguments = %q, want {\"city\":\"berlin\"}", string(tc.Arguments))
+	}
+}
+
+// TestLMStudio_InvalidToolSchema verifies that a malformed Parameters JSON
+// produces a wrapped "invalid tool schema" error before any HTTP call is made.
+func TestLMStudio_InvalidToolSchema(t *testing.T) {
+	// Server should never be hit — bail early if it is.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("server should not be called when tool schema is invalid")
+	}))
+	defer server.Close()
+
+	p := NewLMStudio(server.URL, "test-model")
+	_, err := p.ChatWithTools(context.Background(),
+		[]Message{{Role: "user", Content: "hi"}},
+		[]Tool{{
+			Name:        "broken",
+			Description: "broken schema",
+			Parameters:  json.RawMessage(`{not valid json`),
+		}},
+	)
+	if err == nil {
+		t.Fatal("expected error for invalid tool schema, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid tool schema") {
+		t.Errorf("error should mention 'invalid tool schema', got %q", err.Error())
 	}
 }

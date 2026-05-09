@@ -199,11 +199,17 @@ func (p *LMStudioProvider) ChatWithTools(ctx context.Context, messages []Message
 		return nil, err
 	}
 	if len(resp.Choices) == 0 {
+		log.Error().
+			Str("provider", p.name).
+			Msg("LM Studio returned empty choices array")
 		return nil, errors.New("no response choices")
 	}
 
 	choice := resp.Choices[0]
-	result := &ChatResponse{Content: choice.Message.Content}
+	result := &ChatResponse{
+		Content:   choice.Message.Content,
+		Reasoning: "", // OpenAI standard doesn't provide reasoning field
+	}
 
 	if len(choice.Message.ToolCalls) > 0 {
 		result.ToolCalls = make([]ToolCall, len(choice.Message.ToolCalls))
