@@ -33,7 +33,7 @@ func setupCommanderAsyncTest(t *testing.T) (*Commander, *store.Store, *EventBus,
 		},
 	}
 
-	c := NewCommander(s, reg, bus, cfg, "")
+	c := NewCommander(s, reg, bus, cfg, nil, "")
 
 	// Note: Each mysis creates its own MCP client during Start()
 

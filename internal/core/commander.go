@@ -23,18 +23,20 @@ type Commander struct {
 	registry    *provider.Registry
 	bus         *EventBus
 	config      *config.Config
+	credentials *config.Credentials
 	mcpEndpoint string // MCP upstream endpoint for myses to create their own clients
 	maxMyses    int
 }
 
 // NewCommander creates a new commander.
-func NewCommander(s *store.Store, reg *provider.Registry, bus *EventBus, cfg *config.Config, mcpEndpoint string) *Commander {
+func NewCommander(s *store.Store, reg *provider.Registry, bus *EventBus, cfg *config.Config, creds *config.Credentials, mcpEndpoint string) *Commander {
 	return &Commander{
 		myses:       make(map[string]*Mysis),
 		store:       s,
 		registry:    reg,
 		bus:         bus,
 		config:      cfg,
+		credentials: creds,
 		mcpEndpoint: mcpEndpoint,
 		maxMyses:    cfg.Swarm.MaxMyses,
 	}
@@ -58,7 +60,7 @@ func (c *Commander) LoadMyses() error {
 			continue
 		}
 
-		mysis := NewMysis(sm.ID, sm.Name, sm.CreatedAt, p, c.store, c.bus, c.mcpEndpoint, c)
+		mysis := NewMysis(sm.ID, sm.Name, sm.CreatedAt, p, c.store, c.bus, c.mcpEndpoint, c.credentials, c)
 		c.myses[sm.ID] = mysis
 	}
 
@@ -93,7 +95,7 @@ func (c *Commander) CreateMysis(name, providerName string) (*Mysis, error) {
 	}
 
 	// Create runtime mysis
-	mysis := NewMysis(stored.ID, stored.Name, stored.CreatedAt, p, c.store, c.bus, c.mcpEndpoint, c)
+	mysis := NewMysis(stored.ID, stored.Name, stored.CreatedAt, p, c.store, c.bus, c.mcpEndpoint, c.credentials, c)
 	c.myses[stored.ID] = mysis
 
 	// Emit event

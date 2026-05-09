@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/xonecas/zoea-nova/internal/config"
 	"github.com/xonecas/zoea-nova/internal/constants"
 	"github.com/xonecas/zoea-nova/internal/gamestate"
 	"github.com/xonecas/zoea-nova/internal/mcp"
@@ -29,10 +30,11 @@ type Mysis struct {
 	provider    provider.Provider
 	store       *store.Store
 	bus         *EventBus
-	mcpEndpoint string      // MCP upstream endpoint for creating own client
-	mcpClient   *mcp.Client // Per-mysis MCP client for session isolation
-	mcpProxy    *mcp.Proxy  // Per-mysis MCP proxy wrapping the client
-	commander   *Commander  // Reference to parent commander for WaitGroup
+	mcpEndpoint string              // MCP upstream endpoint for creating own client
+	mcpClient   *mcp.Client         // Per-mysis MCP client for session isolation
+	mcpProxy    *mcp.Proxy          // Per-mysis MCP proxy wrapping the client
+	commander   *Commander          // Reference to parent commander for WaitGroup
+	credentials *config.Credentials // nil-safe; nil means "no code"
 
 	state  MysisState
 	ctx    context.Context
@@ -64,7 +66,10 @@ type contextStats struct {
 }
 
 // NewMysis creates a new mysis from stored data.
-func NewMysis(id, name string, createdAt time.Time, p provider.Provider, s *store.Store, bus *EventBus, mcpEndpoint string, cmd ...*Commander) *Mysis {
+//
+// `creds` may be nil — buildSystemPrompt treats nil and empty RegistrationCode
+// identically and renders the no-code fallback.
+func NewMysis(id, name string, createdAt time.Time, p provider.Provider, s *store.Store, bus *EventBus, mcpEndpoint string, creds *config.Credentials, cmd ...*Commander) *Mysis {
 	var commander *Commander
 	if len(cmd) > 0 {
 		commander = cmd[0]
@@ -78,6 +83,7 @@ func NewMysis(id, name string, createdAt time.Time, p provider.Provider, s *stor
 		bus:           bus,
 		mcpEndpoint:   mcpEndpoint,
 		commander:     commander,
+		credentials:   creds,
 		state:         MysisStateIdle,
 		activityState: ActivityStateIdle,
 	}
@@ -1917,7 +1923,7 @@ func (m *Mysis) buildSystemPrompt() string {
 	prompt := base
 
 	// Replace {{ACCOUNT_DETAILS}} with current credentials
-	accountDetails := constants.AccountDetailsFallback
+	accountDetails := constants.AccountDetailsFallbackNoCode
 	username := m.CurrentAccountUsername()
 	password := m.CurrentPassword()
 

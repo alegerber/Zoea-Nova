@@ -39,7 +39,7 @@ func TestMysisToolExecution(t *testing.T) {
 	// Mock provider that returns a tool call first, then a text response
 	mock := provider.NewMock("mock", "Initial response")
 
-	mysis := NewMysis(stored.ID, stored.Name, stored.CreatedAt, mock, s, bus, "")
+	mysis := NewMysis(stored.ID, stored.Name, stored.CreatedAt, mock, s, bus, "", nil)
 
 	// Setup MCP proxy with a local tool
 	proxy := mcp.NewProxy(nil)
@@ -147,7 +147,7 @@ func TestMysisToolError(t *testing.T) {
 
 	mock := provider.NewMock("mock", "Initial response")
 
-	mysis := NewMysis(stored.ID, stored.Name, stored.CreatedAt, mock, s, bus, "")
+	mysis := NewMysis(stored.ID, stored.Name, stored.CreatedAt, mock, s, bus, "", nil)
 
 	proxy := mcp.NewProxy(nil)
 	proxy.RegisterTool(mcp.Tool{
@@ -221,7 +221,7 @@ func TestMysisToolTimeoutSetsErrored(t *testing.T) {
 	stored, _ := s.CreateMysis("tool-timeout-mysis", "mock", "test-model", 0.7)
 
 	mock := provider.NewMock("mock", "Initial response")
-	mysis := NewMysis(stored.ID, stored.Name, stored.CreatedAt, mock, s, bus, "")
+	mysis := NewMysis(stored.ID, stored.Name, stored.CreatedAt, mock, s, bus, "", nil)
 
 	proxy := mcp.NewProxy(nil)
 	proxy.RegisterTool(mcp.Tool{
@@ -294,7 +294,7 @@ func TestMysisToolRetryExhaustionSetsErrored(t *testing.T) {
 	stored, _ := s.CreateMysis("tool-retry-mysis", "mock", "test-model", 0.7)
 
 	mock := provider.NewMock("mock", "Initial response")
-	mysis := NewMysis(stored.ID, stored.Name, stored.CreatedAt, mock, s, bus, "")
+	mysis := NewMysis(stored.ID, stored.Name, stored.CreatedAt, mock, s, bus, "", nil)
 
 	upstream := &failingUpstream{
 		tools:   []mcp.Tool{{Name: "upstream_tool"}},
