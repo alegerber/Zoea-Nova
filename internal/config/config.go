@@ -98,6 +98,16 @@ func (c *Config) Validate() error {
 
 func validateProviderConfig(name string, cfg ProviderConfig) []error {
 	var errs []error
+
+	if cfg.Type != "" {
+		switch cfg.Type {
+		case "ollama", "opencode", "lmstudio", "openrouter":
+			// known
+		default:
+			errs = append(errs, fmt.Errorf("providers.%s.type=%q is not one of: ollama, opencode, lmstudio, openrouter", name, cfg.Type))
+		}
+	}
+
 	if cfg.Endpoint == "" {
 		errs = append(errs, fmt.Errorf("providers.%s.endpoint is required", name))
 	} else if err := validateEndpoint(cfg.Endpoint); err != nil {

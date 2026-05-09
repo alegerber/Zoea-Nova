@@ -630,3 +630,53 @@ upstream = "https://example.com/mcp"
 		t.Errorf("Type = %q, want empty", got)
 	}
 }
+
+func TestValidateProviderConfig_RejectsUnknownType(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "config.toml")
+	contents := `
+[swarm]
+max_myses = 4
+default_provider = "x"
+
+[providers.x]
+type = "totally-made-up"
+endpoint = "http://localhost:9999/v1"
+model = "foo"
+temperature = 0.5
+
+[mcp]
+upstream = "https://example.com/mcp"
+`
+	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected validation error for unknown type, got nil")
+	}
+	if !strings.Contains(err.Error(), "type=") {
+		t.Errorf("error should mention type, got %q", err.Error())
+	}
+}
+
+func TestValidateProviderConfig_AcceptsKnownTypes(t *testing.T) {
+	cases := []string{"ollama", "opencode", "lmstudio", "openrouter", ""}
+	for _, typ := range cases {
+		t.Run("type="+typ, func(t *testing.T) {
+			cfg := ProviderConfig{
+				Type:        typ,
+				Endpoint:    "http://localhost:1234/v1",
+				Model:       "test-model",
+				Temperature: 0.5,
+			}
+			errs := validateProviderConfig("test", cfg)
+			for _, e := range errs {
+				if strings.Contains(e.Error(), "type=") {
+					t.Errorf("type=%q rejected: %v", typ, e)
+				}
+			}
+		})
+	}
+}
