@@ -242,10 +242,10 @@ func TestLMStudio_Stream(t *testing.T) {
 		if chunk.Err != nil {
 			t.Fatalf("stream error: %v", chunk.Err)
 		}
-		got.WriteString(chunk.Content)
 		if chunk.Done {
 			break
 		}
+		got.WriteString(chunk.Content)
 	}
 	if got.String() != "hello" {
 		t.Errorf("streamed content = %q, want hello", got.String())
