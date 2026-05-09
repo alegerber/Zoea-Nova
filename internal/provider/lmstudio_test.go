@@ -151,3 +151,59 @@ func TestLMStudio_NoRetryOn501(t *testing.T) {
 		t.Errorf("hits = %d, want 1 (no retry on 501)", hits)
 	}
 }
+
+func TestLMStudio_ChatWithTools(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Tools []struct {
+				Function struct {
+					Name string `json:"name"`
+				} `json:"function"`
+			} `json:"tools"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if len(req.Tools) != 1 || req.Tools[0].Function.Name != "get_weather" {
+			t.Errorf("expected one tool 'get_weather', got %+v", req.Tools)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{
+				"message": map[string]any{
+					"role":    "assistant",
+					"content": "",
+					"tool_calls": []map[string]any{{
+						"id":   "call_1",
+						"type": "function",
+						"function": map[string]any{
+							"name":      "get_weather",
+							"arguments": `{"city":"berlin"}`,
+						},
+					}},
+				},
+			}},
+		})
+	}))
+	defer server.Close()
+
+	p := NewLMStudio(server.URL, "qwen2.5-7b")
+	resp, err := p.ChatWithTools(context.Background(),
+		[]Message{{Role: "user", Content: "weather"}},
+		[]Tool{{
+			Name:        "get_weather",
+			Description: "Get weather",
+			Parameters:  json.RawMessage(`{"type":"object","properties":{"city":{"type":"string"}}}`),
+		}},
+	)
+	if err != nil {
+		t.Fatalf("ChatWithTools: %v", err)
+	}
+	if len(resp.ToolCalls) != 1 {
+		t.Fatalf("expected 1 tool call, got %d", len(resp.ToolCalls))
+	}
+	if resp.ToolCalls[0].Name != "get_weather" {
+		t.Errorf("tool call name = %q", resp.ToolCalls[0].Name)
+	}
+}

@@ -181,9 +181,42 @@ func (p *LMStudioProvider) createChatCompletion(ctx context.Context, req openai.
 	return nil, fmt.Errorf("request failed after %d retries: %w", maxRetries, lastErr)
 }
 
-// ChatWithTools — placeholder, full impl in Task 4.
+// ChatWithTools sends messages with available tools and returns response with potential tool calls.
 func (p *LMStudioProvider) ChatWithTools(ctx context.Context, messages []Message, tools []Tool) (*ChatResponse, error) {
-	return nil, errors.New("ChatWithTools not implemented yet")
+	openaiTools, err := toOpenAITools(tools)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tool schema: %w", err)
+	}
+
+	resp, err := p.createChatCompletion(ctx, openai.ChatCompletionRequest{
+		Model:       p.model,
+		Messages:    mergeSystemMessagesOpenAI(toOpenAIMessages(messages)),
+		Tools:       openaiTools,
+		Temperature: float32(p.temperature),
+		Stream:      false,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Choices) == 0 {
+		return nil, errors.New("no response choices")
+	}
+
+	choice := resp.Choices[0]
+	result := &ChatResponse{Content: choice.Message.Content}
+
+	if len(choice.Message.ToolCalls) > 0 {
+		result.ToolCalls = make([]ToolCall, len(choice.Message.ToolCalls))
+		for i, tc := range choice.Message.ToolCalls {
+			result.ToolCalls[i] = ToolCall{
+				ID:        tc.ID,
+				Name:      tc.Function.Name,
+				Arguments: json.RawMessage(tc.Function.Arguments),
+			}
+		}
+	}
+
+	return result, nil
 }
 
 // Stream — placeholder, full impl in Task 5.
