@@ -34,7 +34,7 @@ type Mysis struct {
 	mcpClient   *mcp.Client         // Per-mysis MCP client for session isolation
 	mcpProxy    *mcp.Proxy          // Per-mysis MCP proxy wrapping the client
 	commander   *Commander          // Reference to parent commander for WaitGroup
-	credentials *config.Credentials // nil-safe; nil means "no code"
+	credentials *config.Credentials // immutable after construction (read without lock); nil means "no code"
 
 	state  MysisState
 	ctx    context.Context
@@ -1922,13 +1922,22 @@ func (m *Mysis) buildSystemPrompt() string {
 
 	prompt := base
 
-	// Replace {{ACCOUNT_DETAILS}} with current credentials
-	accountDetails := constants.AccountDetailsFallbackNoCode
+	// Replace {{ACCOUNT_DETAILS}} with current credentials.
+	// Three render paths:
+	//   1. Mysis has an assigned account → render username/password.
+	//   2. No account, registration_code present → render with-code fallback.
+	//   3. No account, no code             → render no-code fallback.
 	username := m.CurrentAccountUsername()
 	password := m.CurrentPassword()
 
-	if username != "" {
+	var accountDetails string
+	switch {
+	case username != "":
 		accountDetails = fmt.Sprintf(constants.AccountDetailsTemplate, username, password)
+	case m.credentials != nil && m.credentials.RegistrationCode != "":
+		accountDetails = fmt.Sprintf(constants.AccountDetailsFallbackWithCode, m.credentials.RegistrationCode)
+	default:
+		accountDetails = constants.AccountDetailsFallbackNoCode
 	}
 
 	prompt = strings.Replace(prompt, "{{ACCOUNT_DETAILS}}", accountDetails, 1)

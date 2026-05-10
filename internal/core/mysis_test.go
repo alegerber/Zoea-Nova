@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xonecas/zoea-nova/internal/config"
 	"github.com/xonecas/zoea-nova/internal/constants"
 	"github.com/xonecas/zoea-nova/internal/mcp"
 	"github.com/xonecas/zoea-nova/internal/provider"
@@ -2791,5 +2792,94 @@ func TestCompactSnapshots_MultipleSnapshots(t *testing.T) {
 	// Verify order preserved (user message should still be first)
 	if len(result) > 0 && result[0].Role != store.MemoryRoleUser {
 		t.Error("Message order not preserved - user message should be first")
+	}
+}
+
+func TestBuildSystemPrompt_FallbackWithCode(t *testing.T) {
+	s, bus, cleanup := setupMysisTest(t)
+	defer cleanup()
+
+	stored, err := s.CreateMysis("test-fallback-with-code", "mock", "test-model", 0.7)
+	if err != nil {
+		t.Fatalf("CreateMysis() error: %v", err)
+	}
+
+	mock := provider.NewMock("mock", "ok")
+	creds := &config.Credentials{RegistrationCode: "REAL-CODE-99"}
+	m := NewMysis(stored.ID, stored.Name, stored.CreatedAt, mock, s, bus, "", creds)
+
+	// Mysis has no assigned account: currentAccountUsername stays empty.
+	prompt := m.buildSystemPrompt()
+
+	if !strings.Contains(prompt, `registration_code="REAL-CODE-99"`) {
+		t.Errorf("expected prompt to embed registration_code=\"REAL-CODE-99\", got:\n%s", prompt)
+	}
+	if !strings.Contains(strings.ToLower(prompt), "never invent") {
+		t.Errorf("expected anti-hallucination guardrail, got:\n%s", prompt)
+	}
+}
+
+func TestBuildSystemPrompt_FallbackNoCode(t *testing.T) {
+	s, bus, cleanup := setupMysisTest(t)
+	defer cleanup()
+
+	stored, err := s.CreateMysis("test-fallback-no-code", "mock", "test-model", 0.7)
+	if err != nil {
+		t.Fatalf("CreateMysis() error: %v", err)
+	}
+
+	mock := provider.NewMock("mock", "ok")
+
+	cases := []struct {
+		name  string
+		creds *config.Credentials
+	}{
+		{"nil creds", nil},
+		{"empty code", &config.Credentials{}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := NewMysis(stored.ID, stored.Name, stored.CreatedAt, mock, s, bus, "", tc.creds)
+			prompt := m.buildSystemPrompt()
+
+			if strings.Contains(prompt, `registration_code="`) {
+				t.Errorf("no-code fallback should not embed a code, got:\n%s", prompt)
+			}
+			if !strings.Contains(prompt, "credentials.json") {
+				t.Errorf("expected hint pointing to credentials.json, got:\n%s", prompt)
+			}
+		})
+	}
+}
+
+func TestBuildSystemPrompt_AssignedAccount_NoCodeReference(t *testing.T) {
+	s, bus, cleanup := setupMysisTest(t)
+	defer cleanup()
+
+	stored, err := s.CreateMysis("test-assigned-account", "mock", "test-model", 0.7)
+	if err != nil {
+		t.Fatalf("CreateMysis() error: %v", err)
+	}
+
+	mock := provider.NewMock("mock", "ok")
+	creds := &config.Credentials{RegistrationCode: "SHOULD-NOT-LEAK"}
+	m := NewMysis(stored.ID, stored.Name, stored.CreatedAt, mock, s, bus, "", creds)
+
+	// Simulate an assigned account by writing into the runtime fields directly.
+	m.mu.Lock()
+	m.currentAccountUsername = "captain_zoea"
+	m.currentPassword = "hunter2"
+	m.mu.Unlock()
+
+	prompt := m.buildSystemPrompt()
+
+	if strings.Contains(prompt, "registration_code") {
+		t.Errorf("assigned-account prompt must NOT mention registration_code, got:\n%s", prompt)
+	}
+	if strings.Contains(prompt, "SHOULD-NOT-LEAK") {
+		t.Errorf("registration code leaked into assigned-account prompt:\n%s", prompt)
+	}
+	if !strings.Contains(prompt, "captain_zoea") {
+		t.Errorf("expected username to be rendered, got:\n%s", prompt)
 	}
 }
