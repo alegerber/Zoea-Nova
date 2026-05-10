@@ -37,7 +37,7 @@ func setupCommanderTest(t *testing.T) (*Commander, *EventBus, func()) {
 		},
 	}
 
-	cmd := NewCommander(s, reg, bus, cfg, "")
+	cmd := NewCommander(s, reg, bus, cfg, nil, "")
 
 	// Set a dummy MCP proxy to avoid "no tools" error events
 	// Note: Each mysis creates its own MCP client during Start()
@@ -518,7 +518,7 @@ func TestCommanderLoadMyses(t *testing.T) {
 		},
 	}
 
-	cmd := NewCommander(s, reg, bus, cfg, "")
+	cmd := NewCommander(s, reg, bus, cfg, nil, "")
 
 	if err := cmd.LoadMyses(); err != nil {
 		t.Fatalf("LoadMyses() error: %v", err)
@@ -571,7 +571,7 @@ func TestBroadcastDoesNotBlockOnBusyMysis(t *testing.T) {
 		},
 	}
 
-	cmd := NewCommander(s, reg, bus, cfg, "")
+	cmd := NewCommander(s, reg, bus, cfg, nil, "")
 	// Note: Each mysis creates its own MCP client during Start()
 
 	// Create two myses: one slow, one fast
@@ -766,6 +766,40 @@ func TestMaxMyses(t *testing.T) {
 	expected := 16 // From setupCommanderTest config
 	if got := cmd.MaxMyses(); got != expected {
 		t.Errorf("MaxMyses() = %d, want %d", got, expected)
+	}
+}
+
+func TestCommander_PassesCredentialsToMysis(t *testing.T) {
+	bus := NewEventBus(100)
+	defer bus.Close()
+
+	reg := provider.NewRegistry()
+	reg.RegisterFactory("mock", provider.NewMockFactory("mock", "response"))
+
+	cfg := &config.Config{
+		Swarm:     config.SwarmConfig{MaxMyses: 4},
+		Providers: map[string]config.ProviderConfig{"mock": {Endpoint: "http://example", Model: "m", Temperature: 0.5}},
+	}
+	creds := &config.Credentials{RegistrationCode: "TEST-XYZ"}
+
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open() error: %v", err)
+	}
+	defer st.Close()
+
+	c := NewCommander(st, reg, bus, cfg, creds, "")
+	mysis, err := c.CreateMysis("alpha", "mock")
+	if err != nil {
+		t.Fatalf("CreateMysis: %v", err)
+	}
+	if mysis.credentials == nil {
+		t.Fatal("Mysis.credentials should not be nil after CreateMysis")
+	}
+	if mysis.credentials.RegistrationCode != "TEST-XYZ" {
+		t.Errorf("credentials.RegistrationCode = %q, want TEST-XYZ", mysis.credentials.RegistrationCode)
 	}
 }
 

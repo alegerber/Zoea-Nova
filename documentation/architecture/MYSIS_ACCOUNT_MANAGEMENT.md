@@ -93,6 +93,36 @@ Commander: delete_mysis() → Store: clear assigned_to → Pool gains available 
 
 ---
 
+## Setup: Registration Code
+
+The SpaceMolt server requires a `registration_code` parameter on `register()`.
+The user supplies their code from <https://spacemolt.com/dashboard> and stores
+it in `~/.zoea-nova/credentials.json`:
+
+```json
+{
+  "registration_code": "DEIN_CODE_VOM_DASHBOARD",
+  "providers": {
+    "opencode_zen": { "api_key": "sk-..." }
+  }
+}
+```
+
+Permissions: `chmod 600 ~/.zoea-nova/credentials.json`. The file is `.gitignore`'d.
+
+Behaviour:
+- **Code present:** Mysis system prompt instructs the LLM to call
+  `register(username, empire, registration_code="<code>")`. The proxy
+  intercepts the response and adds the new account to the pool.
+- **Code missing:** Mysis system prompt tells the LLM that `register()` will
+  fail until the user sets the field. Mysis avoids retrying with hallucinated
+  values (anti-hallucination guardrail in the prompt).
+- **Pool already populated:** The `registration_code` is irrelevant — the
+  proxy substitutes `register()` with `login()` against an existing pool
+  account before the upstream call.
+
+---
+
 ## Out of Scope
 
 - Review of other `zoea_*` tools (note: `zoea_claim_account` was removed entirely)

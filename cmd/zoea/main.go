@@ -114,7 +114,7 @@ func main() {
 	}
 
 	// Initialize commander with MCP endpoint
-	commander := core.NewCommander(s, registry, bus, cfg, mcpEndpoint)
+	commander := core.NewCommander(s, registry, bus, cfg, creds, mcpEndpoint)
 
 	// Load existing myses from database
 	if err := commander.LoadMyses(); err != nil {

@@ -42,8 +42,19 @@ Continue to play the game.
 const AccountDetailsTemplate = `Username: %s
 Password: %s`
 
-// AccountDetailsFallback is used when no credentials are available
-const AccountDetailsFallback = `No active account. Call register()`
+// AccountDetailsFallbackWithCode is rendered when the mysis has no assigned
+// account but the user has supplied a registration_code in credentials.json.
+// Format with: fmt.Sprintf(AccountDetailsFallbackWithCode, code).
+const AccountDetailsFallbackWithCode = `No active account. Call register(username, empire, registration_code="%s").
+The host proxy handles all credentials internally.
+NEVER invent a different registration_code.`
+
+// AccountDetailsFallbackNoCode is rendered when the mysis has no assigned
+// account and no registration_code is configured. The mysis is told that
+// register() will fail until the user sets the field.
+const AccountDetailsFallbackNoCode = `No active account. register() will fail until a registration_code is set.
+Set "registration_code" at the top level of ~/.zoea-nova/credentials.json, then restart Zoea Nova.
+NEVER invent a registration_code.`
 
 // GameStateSummaryFallback is shown when no game state is cached
 const GameStateSummaryFallback = ``
